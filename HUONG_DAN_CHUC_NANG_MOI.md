@@ -14,7 +14,7 @@ Tài liệu này mô tả phần **bổ sung** theo mục 4.2 và 5.2 của SRS.
   3. Bọc hàm xuất khẩu (`notificationService.notifySafe`, `realtime.presenceOf`, `realtime.publish`) để thêm cài đặt thông báo,
      tắt thông báo hội thoại, Web Push, "lần cuối truy cập" bền vững, Redis.
 - Những file cũ chỉ được **chèn thêm dòng** (import, prop, nút/menu, một dòng gọi component mới):
-  - Backend: `src/app.js` (7 dòng gọi `extensions`), `src/config/cassandra.js` (mức nhất quán cấu hình được), `schema.cql` (nối 32 bảng mới vào cuối),
+  - Backend: `src/middleware/security.js` (chèn 4 dòng: `rateLimit` dùng Redis khi có, NFR-13), `src/app.js` (7 dòng gọi `extensions`), `src/config/cassandra.js` (mức nhất quán cấu hình được), `schema.cql` (nối 32 bảng mới vào cuối),
     `package.json` (script mới, `optionalDependencies`).
   - Kiểm thử: `tests/migrate.test.js` (test "008 sau 007" giới hạn đúng thư mục 001–008 vì giờ đã có 009+),
     `tests/fakeCassandra.js` (hỗ trợ thêm kiểu `list<text>`, `set<int>`).
@@ -24,8 +24,8 @@ Tài liệu này mô tả phần **bổ sung** theo mục 4.2 và 5.2 của SRS.
 
 ### Kết quả đối chiếu với mã gốc (so từng byte với bản sao lưu trước khi phát triển)
 
-- 155 file gốc: **126 file giữ nguyên tuyệt đối**, 0 file bị xóa, 29 file có thêm dòng.
-- Trong 29 file đó chỉ có **21 dòng gốc được thay**, đều là mở rộng tại chỗ, không đổi hành vi cũ:
+- 155 file gốc: **125 file giữ nguyên tuyệt đối**, 0 file bị xóa, 30 file có thêm dòng.
+- Trong 30 file đó chỉ có **21 dòng gốc được thay**, đều là mở rộng tại chỗ, không đổi hành vi cũ:
   thêm tham số vào chữ ký hàm (`ChatApp`, `Composer`, `send` trong `ChatWindow`), thêm phần tử vào danh sách tab của `InfoPanel`,
   thêm `style` ảnh bìa cho thẻ `profile-cover` (`PostsPage`, `ProfileModal`), Avatar hiện ảnh thật nếu có (không có thì vẫn chữ cái đầu),
   `MessageItem` ẩn chữ thay thế khi tin là sticker/bình chọn, `Sidebar` thêm bộ lọc "Lưu trữ",
@@ -51,7 +51,7 @@ Cấu hình mới: xem cuối `backend/.env.example`.
 
 | Mã | Chức năng | API chính | Giao diện |
 |---|---|---|---|
-| PT-01 | Đổi mật khẩu, hủy phiên khác | `POST /me/password` | Cài đặt tài khoản › Bảo mật |
+| PT-01 | Đổi mật khẩu, hủy phiên khác | `POST /auth/password/change` (đúng SRS 6.3), giữ cả `POST /me/password` | Cài đặt tài khoản › Bảo mật |
 | PT-02 | Quên mật khẩu (link 30 phút, 1 lần) | `POST /auth/password/forgot`, `/auth/password/reset` | "Quên mật khẩu?" ở màn đăng nhập; link `/?reset=` |
 | PT-03 | Đổi tên hiển thị (cập nhật chỉ mục tìm tên trong 1 batch) | `PATCH /me/display-name` | Cài đặt › Hồ sơ |
 | PT-04 | Ảnh đại diện (cắt khung), ảnh bìa | `POST/DELETE /me/avatar`, `/me/cover`, `GET /avatars?ids=` | Cài đặt › Hồ sơ; ảnh hiện ở mọi Avatar |
@@ -113,9 +113,9 @@ Phi chức năng:
 
 | Mã | Đã làm |
 |---|---|
-| NFR-13 | `REDIS_URL` → realtime đồng bộ giữa nhiều tiến trình (`extensions/realtime-redis.js`). Bộ đếm giới hạn tốc độ cũ vẫn trong bộ nhớ. |
+| NFR-13 | `REDIS_URL` → realtime đồng bộ giữa nhiều tiến trình (`extensions/realtime-redis.js`) **và** mọi bộ giới hạn tốc độ (cũ và mới) đếm chung qua Redis (`extensions/lib/redisRateLimit.js`, script Lua nguyên tử INCR + PEXPIRE). Redis lỗi → tự đếm cục bộ, không chặn nhầm người dùng. Không có Redis → giữ nguyên như cũ. |
 | NFR-14 | `docker-compose.cluster.yml` (3 nút), `npm run cluster:replication` (RF = 3), `CASSANDRA_CONSISTENCY=localQuorum`. |
-| NFR-15 | **Chưa làm**: lưu tệp nằm trong `attachment.service.js` cũ; chuyển sang S3/MinIO bắt buộc sửa mã cũ. |
+| NFR-15 | `STORAGE_DRIVER=s3` → tệp chat, tin nhắn thoại, ảnh bài viết, ảnh đại diện/bìa/nhóm, story lưu trên S3/MinIO (`extensions/lib/s3.js` tự ký AWS SigV4, không cần thư viện; `extensions/storage-hooks.js`). `UPLOAD_DIR` chỉ còn là bộ đệm: mất bộ đệm vẫn tải được từ S3. S3 lỗi khi tải lên → 503, không để lại bản ghi. Mặc định `disk`: y như cũ. `attachment.service.js`, `post.service.js` **không bị sửa** (bọc hàm xuất khẩu). Giới hạn: lệnh dọn tệp mồ côi (`attachments:cleanup`, `stories:cleanup`) chỉ dọn bộ đệm cục bộ, chưa dọn object trên S3. |
 | NFR-16 | `npm run start:https` (HTTPS + HSTS + chuyển hướng HTTP) và xác thực hai lớp TOTP (Cài đặt › Bảo mật). |
 | NFR-17 | Chế độ tối/sáng/theo hệ thống, giao diện ≥ 360 px, PWA (`manifest.webmanifest`, `sw.js`). |
 | NFR-18 | `GET /metrics` (Prometheus), `LOG_FORMAT=json`. |
@@ -123,6 +123,7 @@ Phi chức năng:
 
 ## 4. Kiểm thử
 
-`npm test` chạy 16 bộ (thêm `backend/tests/extensions.test.js` và `backend/tests/work.test.js`) trên Cassandra giả lập – **269 test, tất cả đạt**.
+`npm test` chạy 17 bộ (thêm `extensions.test.js`, `work.test.js`, `storage-redis.test.js`) trên Cassandra giả lập – **275 test, tất cả đạt**.
+S3 được kiểm bằng máy chủ S3 giả lập chạy thật, kiểm tra chữ ký từng request; chữ ký SigV4 khớp ví dụ chuẩn trong tài liệu AWS. Redis được kiểm bằng client giả lập (chưa chạy Redis/MinIO thật).
 WebRTC đã kiểm chứng bằng 2 trình duyệt Chrome thật (camera/micro giả lập): âm thanh và hình ảnh truyền hai chiều, chia sẻ màn hình, chat, kết thúc họp.
 Chưa kiểm thử trên Cassandra thật / Docker trong lần phát triển này.
