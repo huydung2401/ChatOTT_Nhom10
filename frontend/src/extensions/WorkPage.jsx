@@ -13,6 +13,8 @@ const TABS = [
   ['meetings', 'Cuộc họp', Video], ['reminders', 'Nhắc nhở', BellRing]
 ];
 
+const offsetLabel = m => (m >= 1440 && m % 1440 === 0 ? `${m / 1440} ngày` : m >= 60 && m % 60 === 0 ? `${m / 60} giờ` : `${m} phút`);
+
 function TaskRow({ t, onOpen }) {
   return (
     <button type="button" className="wk-task" onClick={() => onOpen(t.taskId)}>
@@ -144,7 +146,7 @@ function Reminders({ onToast }) {
           <li key={r.reminderId} className={'st-r-' + r.status}>
             <AlarmClock size={16} />
             <span className="grow"><b>{r.title || r.note || 'Nhắc nhở'}</b>
-              <span className="muted"> · {fmtDateTime(r.fireAt)}{r.targetType !== 'CUSTOM' ? ` · ${r.anchor === 'DUE' ? 'trước hạn' : 'trước giờ bắt đầu'} ${r.offsetMinutes} phút` : ''}</span>
+              <span className="muted"> · {fmtDateTime(r.fireAt)}{r.targetType !== 'CUSTOM' ? ` · ${r.anchor === 'DUE' ? 'trước hạn' : 'trước giờ bắt đầu'} ${offsetLabel(r.offsetMinutes)}` : ''}</span>
               {r.lastError && r.status === 'FAILED' && <span className="error-text"> · {r.lastError}</span>}
             </span>
             <span className={`wk-pill r-${r.status}`}>{LABEL[r.status] || r.status}</span>

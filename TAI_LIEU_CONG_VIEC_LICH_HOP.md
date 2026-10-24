@@ -224,6 +224,7 @@ Backend **không** truyền âm thanh hay hình ảnh. Backend chỉ:
 | `TURN_URLS`, `TURN_SECRET`, `TURN_TTL_SECONDS` | trống, trống, 3600 | TURN (coturn `use-auth-secret`) |
 | `REMINDER_WORKER` | true | `false` để tắt worker nhắc nhở trên tiến trình này |
 | `REMINDER_INTERVAL_SECONDS` | 30 | Chu kỳ quét nhắc đến hạn |
+| `APP_TIMEZONE` | `Asia/Ho_Chi_Minh` | Múi giờ hiển thị giờ trong nội dung thông báo |
 | `WORK_RATE_LIMIT`, `SIGNAL_RATE_LIMIT` | 120, 1200 / phút | Giới hạn tốc độ thao tác và tín hiệu |
 
 ## 11. Kết quả kiểm chứng (thực tế đã chạy)
