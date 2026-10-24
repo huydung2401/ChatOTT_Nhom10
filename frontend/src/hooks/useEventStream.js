@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { EVENTS_URL } from '../api';
+import { EXTRA_EVENTS } from '../extensions/sse';
 
 const NAMES = [
   'message:new', 'message:deleted', 'message:hidden', 'reaction:updated', 'conversation:updated', 'conversation:removed',
@@ -33,6 +34,15 @@ export default function useEventStream(handlers) {
           handlersRef.current[name]?.(JSON.parse(event.data));
         } catch {
           /* bo qua su kien loi dinh dang */
+        }
+      }));
+      // Su kien cua chuc nang moi: phat lai thanh window event 'chatott:sse' cho component moi nghe.
+      // Gom ca su kien cu de component moi dung chung (khong doi cach xu ly cu).
+      [...EXTRA_EVENTS, ...NAMES].forEach(name => source.addEventListener(name, event => {
+        try {
+          window.dispatchEvent(new CustomEvent('chatott:sse', { detail: { name, data: JSON.parse(event.data) } }));
+        } catch {
+          /* bo qua */
         }
       }));
       source.addEventListener('ready', () => {

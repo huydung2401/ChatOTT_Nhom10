@@ -12,6 +12,10 @@ import PinBar from './PinBar';
 import { Lightbox } from './Attachments';
 import { api, normalizeMessage } from '../api';
 import { copyText, formatDayDivider, lastSeenText, sameDay } from '../utils';
+import { Flag, History, Languages, Pencil } from 'lucide-react';
+import ChatExtrasBar from '../extensions/ChatExtrasBar';
+import { useMessageExtrasSync } from '../extensions/MessageExtras';
+import { EditHistoryDialog, EditMessageDialog, ReportDialog, TranslateDialog, canEdit } from '../extensions/MessageDialogs';
 
 const GROUP_GAP_MS = 5 * 60 * 1000;
 const TYPING_TTL_MS = 4500;
@@ -56,6 +60,7 @@ export default function ChatWindow({
   const [pins, setPins] = useState([]);                   // tin da ghim (moi nhat truoc)
   const [detached, setDetached] = useState(false);       // dang xem cua so cu (chua toi tin moi nhat)
   const [loadingNewer, setLoadingNewer] = useState(false);
+  const [extDialog, setExtDialog] = useState(null);        // chuc nang moi: { type: edit|history|translate|report, message }
 
   const scrollRef = useRef(null);
   const sentinelRef = useRef(null);
@@ -353,6 +358,9 @@ export default function ChatWindow({
     }
   }, [id, loadFirst, loadMembers, loadPins]);
 
+  // Chuc nang moi: sua tin / extra (binh chon, nhac ten, link) / khoi phuc tin qua realtime.
+  useMessageExtrasSync(id, setMessages, resync);
+
   useImperativeHandle(ref, () => ({
     receive(raw) {
       const message = normalizeMessage(raw);
@@ -397,10 +405,11 @@ export default function ChatWindow({
     jumpTo: target => jumpRef.current?.(target)
   }), [user.userId, markRead, loadMembers, resync, loadPins]);
 
-  async function send({ content, attachmentIds }) {
+  async function send({ content, attachmentIds, mentions }) {
     const created = await api.sendMessage(id, {
       content: content || undefined,
       attachmentIds: attachmentIds.length ? attachmentIds : undefined,
+      mentions: mentions?.length ? mentions : undefined,
       replyTo: replyTo ? { messageId: replyTo.messageId, createdAt: replyTo.createdAt } : undefined
     });
     stickRef.current = true;
@@ -408,6 +417,15 @@ export default function ChatWindow({
     if (detachedRef.current) loadFirst();
     else setMessages(list => mergeUnique(list, [created], 'end'));
     onChanged(created);
+  }
+
+  // Tin gui tu thanh cong cu moi (sticker, ghi am, binh chon).
+  function addSent(created) {
+    const message = normalizeMessage(created);
+    stickRef.current = true;
+    if (detachedRef.current) loadFirst();
+    else setMessages(list => mergeUnique(list, [message], 'end'));
+    onChanged(message);
   }
 
   async function recall(message) {
@@ -509,6 +527,10 @@ export default function ChatWindow({
     if (m.senderId === user.userId && !m.isDeleted) {
       items.push({ key: 'recall', label: 'Thu hồi', icon: Undo2, danger: true, onSelect: () => setConfirming({ type: 'recall', message: m }) });
     }
+    if (canEdit(m, user.userId)) items.push({ key: 'edit', label: 'Sửa tin nhắn', icon: Pencil, onSelect: () => setExtDialog({ type: 'edit', message: m }) });
+    if (m.extra?.editedAt && !m.isDeleted) items.push({ key: 'history', label: 'Lịch sử chỉnh sửa', icon: History, onSelect: () => setExtDialog({ type: 'history', message: m }) });
+    if (!m.isDeleted && m.content && m.messageType !== 'SYSTEM') items.push({ key: 'translate', label: 'Dịch (AI)', icon: Languages, onSelect: () => setExtDialog({ type: 'translate', message: m }) });
+    if (!m.isDeleted && m.senderId !== user.userId && m.messageType !== 'SYSTEM') items.push({ key: 'report', label: 'Báo cáo', icon: Flag, danger: true, onSelect: () => setExtDialog({ type: 'report', message: m }) });
     items.push({ key: 'hide', label: 'Xóa phía tôi', icon: EyeOff, danger: true, onSelect: () => setConfirming({ type: 'hide', message: m }) });
     return items;
   }
@@ -687,6 +709,8 @@ export default function ChatWindow({
         )}
       </div>
 
+      <ChatExtrasBar conversationId={id} isGroup={isGroup} disabled={phase !== 'ready'} onSent={addSent} onToast={onToast}
+        onInsertText={t => composerRef.current?.insertText?.(t)} />
       <Composer
         ref={composerRef}
         conversationId={id}
@@ -695,6 +719,8 @@ export default function ChatWindow({
         onCancelReply={() => setReplyTo(null)}
         onSend={send}
         onTyping={() => api.typing(id).catch(() => {})}
+        members={members}
+        selfId={user.userId}
       />
 
       {menu && <ContextMenu x={menu.x} y={menu.y} items={menuItems(menu.message)} onClose={closeMenu} />}
@@ -726,6 +752,16 @@ export default function ChatWindow({
         />
       )}
 
+      {extDialog?.type === 'edit' && (
+        <EditMessageDialog conversationId={id} message={extDialog.message} onToast={onToast} onClose={() => setExtDialog(null)}
+          onSaved={m => { setMessages(list => list.map(x => (x.messageId === m.messageId ? { ...x, content: m.content, extra: m.extra } : x))); onChanged(); }} />
+      )}
+      {extDialog?.type === 'history' && <EditHistoryDialog conversationId={id} message={extDialog.message} onClose={() => setExtDialog(null)} />}
+      {extDialog?.type === 'translate' && <TranslateDialog conversationId={id} message={extDialog.message} onClose={() => setExtDialog(null)} />}
+      {extDialog?.type === 'report' && (
+        <ReportDialog onToast={onToast} onClose={() => setExtDialog(null)}
+          target={{ targetType: 'MESSAGE', targetId: extDialog.message.messageId, conversationId: id, createdAt: extDialog.message.createdAt, label: 'tin nhắn' }} />
+      )}
       {lightbox && <Lightbox conversationId={id} image={lightbox} onClose={closeLightbox} />}
     </section>
   );

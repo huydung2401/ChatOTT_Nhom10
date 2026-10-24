@@ -34,6 +34,7 @@ export function FileCard({ conversationId, file, compact = false }) {
 export function MessageAttachments({ conversationId, attachments, onOpenImage }) {
   const media = attachments.filter(a => a.kind === 'IMAGE' || a.kind === 'VIDEO');
   const files = attachments.filter(a => a.kind === 'FILE');
+  const audios = attachments.filter(a => a.kind === 'AUDIO'); // PT-12 tin nhan thoai
   return (
     <div className="msg-files">
       {media.length > 0 && (
@@ -49,6 +50,9 @@ export function MessageAttachments({ conversationId, attachments, onOpenImage })
           )))}
         </div>
       )}
+      {audios.map(a => (
+        <audio key={a.attachmentId} className="ext-audio" controls preload="metadata" src={attachmentUrl(conversationId, a.attachmentId)} aria-label={a.fileName} />
+      ))}
       {files.map(f => <FileCard key={f.attachmentId} conversationId={conversationId} file={f} />)}
     </div>
   );

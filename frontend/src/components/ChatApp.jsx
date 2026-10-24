@@ -17,8 +17,9 @@ import ConfirmDialog from './ConfirmDialog';
 import useEventStream from '../hooks/useEventStream';
 import { api } from '../api';
 import { readPref, timeuuidToIso, writePref } from '../utils';
+import useChatAppExtensions from '../extensions/useChatAppExtensions';
 
-export default function ChatApp({ user, onLogout }) {
+export default function ChatApp({ user, onLogout, onUserChanged }) {
   const [conversations, setConversations] = useState([]);
   const [listLoading, setListLoading] = useState(true);
   const [listError, setListError] = useState('');
@@ -99,6 +100,11 @@ export default function ChatApp({ user, onLogout }) {
     setActiveId(id);
     setConversations(list => list.map(c => (c.conversationId === id ? { ...c, unread: false } : c)));
   }, []);
+
+  // Chuc nang moi: cai dat, bai da luu, hashtag, quan tri, link moi nhom.
+  const extras = useChatAppExtensions({
+    user, view, setView, conversations, openConversation, loadConversations, setToast, onOpenProfile: setProfileId, onUserChanged
+  });
 
   useEffect(() => {
     const keys = Object.keys(typingIn);
@@ -204,6 +210,9 @@ export default function ChatApp({ user, onLogout }) {
       openConversation(n.conversationId);
     } else if (n.type === 'FRIEND_REQUEST') {
       setView('friends');
+    } else if (['MENTION', 'TASK_DUE', 'GROUP_JOIN_REQUEST'].includes(n.type) && n.conversationId) {
+      setView('chat');
+      openConversation(n.conversationId);
     } else if (n.type === 'FRIEND_ACCEPT') {
       setProfileId(n.actor.userId);
     }
@@ -255,6 +264,11 @@ export default function ChatApp({ user, onLogout }) {
         notifBadge={notifUnread}
         friendBadge={incomingCount}
         onOpenMyProfile={() => setProfileId(user.userId)}
+        isAdmin={extras.isAdmin}
+        onShowSettings={() => setView('settings')}
+        onShowSaved={() => setView('saved')}
+        onShowHashtag={() => setView('hashtag')}
+        onShowAdmin={() => setView('admin')}
       />
 
       {(view === 'feed' || view === 'profile') && (
@@ -291,6 +305,8 @@ export default function ChatApp({ user, onLogout }) {
           </ErrorBoundary>
         </main>
       )}
+
+      {extras.render()}
 
       {view === 'chat' && <Sidebar
         user={user}
@@ -406,6 +422,7 @@ export default function ChatApp({ user, onLogout }) {
         />
       )}
 
+      {extras.overlays}
       {toast && <div className="toast" role="status">{toast}</div>}
     </div>
   );

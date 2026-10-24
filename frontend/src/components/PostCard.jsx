@@ -7,6 +7,7 @@ import ReactionsDialog from './ReactionsDialog';
 import { POST_REACTIONS, PRIVACY_INFO, PrivacyIcon, PrivacySelect, reactionOf } from './PostBits';
 import { api, postMediaUrl } from '../api';
 import { formatFull, formatListTime } from '../utils';
+import { PostExtras } from '../extensions/SocialExtras';
 
 function Images({ post, onOpen }) {
   if (!post.media.length) return null;
@@ -186,6 +187,7 @@ function PostCard({ post: initial, me, onChanged, onDeleted, onShare, onOpenProf
 
       <Images post={post} onOpen={onOpenImage} />
       <EmbeddedPost shared={post.shared} onOpenProfile={onOpenProfile} onOpenImage={onOpenImage} />
+      <PostExtras post={post} me={me} onToast={onToast} />
 
       {(post.reactions.total > 0 || post.commentCount > 0 || post.shareCount > 0) && (
         <div className="post-stats">

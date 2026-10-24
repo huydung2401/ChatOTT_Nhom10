@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { CornerDownRight, LoaderCircle, RotateCcw } from 'lucide-react';
 import Avatar from './Avatar';
+import { ReportCommentButton } from '../extensions/SocialExtras';
 import ConfirmDialog from './ConfirmDialog';
 import { api } from '../api';
 import { formatFull, formatListTime } from '../utils';
@@ -89,6 +90,7 @@ function CommentItem({ c, isReply, rootId, onReply, onEdited, onAskDelete, onOpe
           <button type="button" className="link-btn" onClick={() => onReply(c)}>Trả lời</button>
           {c.canEdit && !editing && <button type="button" className="link-btn" onClick={() => { setDraft(c.content); setEditing(true); }}>Sửa</button>}
           {c.canDelete && <button type="button" className="link-btn danger-text" onClick={() => onAskDelete(c)}>Xóa</button>}
+          {!c.canEdit && <ReportCommentButton postId={postId} commentId={c.commentId} onToast={onToast} />}
         </div>
       </div>
     </div>

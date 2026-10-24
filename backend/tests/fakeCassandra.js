@@ -98,6 +98,15 @@ function normalize(type, value) {
             const arr = [...new Set([...(value instanceof Set ? value : value)].map(String))].sort();
             return arr.length ? arr : null;
         }
+        // Them cho migration 010 (binh chon): list<text>, set<int>.
+        case 'list<text>': {
+            const arr = [...value].map(String);
+            return arr.length ? arr : null;
+        }
+        case 'set<int>': {
+            const arr = [...new Set([...value].map(Number))].sort((x, y) => x - y);
+            return arr.length ? arr : null;
+        }
         case 'list<uuid>':
         case 'list<timeuuid>': {
             const arr = [...value].map(v => v.toString().toLowerCase());
@@ -119,6 +128,8 @@ function denormalize(type, value) {
         case 'timeuuid': return TimeUuid.fromString(value);
         case 'timestamp': return new Date(value);
         case 'set<text>': return [...value];
+        case 'list<text>':
+        case 'set<int>': return [...value];
         case 'list<uuid>': return value.map(v => Uuid.fromString(v));
         case 'list<timeuuid>': return value.map(v => TimeUuid.fromString(v));
         case 'counter': return require('cassandra-driver').types.Long.fromNumber(value);

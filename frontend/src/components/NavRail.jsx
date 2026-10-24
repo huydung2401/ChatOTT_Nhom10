@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { Bell, LogOut, MessageCircle, Gauge, UsersRound, Contact, UserRound, Newspaper, Search } from 'lucide-react';
+import { Bookmark, Hash, Settings, Shield } from 'lucide-react';
 import Avatar from './Avatar';
 import Logo from './Logo';
 
 export default function NavRail({
   user, onLogout, onCreateGroup, demoMode, onToggleDemo, live, unreadCount,
   view = 'chat', onShowChat, onShowFriends, onShowFeed, onShowNotifications, onShowSearch, notifBadge = 0, friendBadge = 0, onOpenMyProfile
+  , isAdmin = false, onShowSettings, onShowSaved, onShowHashtag, onShowAdmin
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef(null);
@@ -55,6 +57,18 @@ export default function NavRail({
               <UserRound size={17} />
               <span>Hồ sơ của tôi</span>
             </button>
+            {onShowSettings && (
+              <button type="button" role="menuitem" className="menu-item" onClick={() => { setMenuOpen(false); onShowSettings(); }}>
+                <Settings size={17} />
+                <span>Cài đặt tài khoản</span>
+              </button>
+            )}
+            {onShowSaved && (
+              <button type="button" role="menuitem" className="menu-item" onClick={() => { setMenuOpen(false); onShowSaved(); }}>
+                <Bookmark size={17} />
+                <span>Bài viết đã lưu</span>
+              </button>
+            )}
             <button type="button" role="menuitemcheckbox" aria-checked={demoMode} className="menu-item" onClick={onToggleDemo}>
               <Gauge size={17} />
               <span>Hiện số liệu Cassandra</span>
@@ -93,6 +107,16 @@ export default function NavRail({
           <Contact size={22} />
           {friendBadge > 0 && <span className="rail-badge">{friendBadge > 9 ? '9+' : friendBadge}</span>}
         </button>
+        {onShowHashtag && (
+          <button type="button" className={'rail-btn' + (view === 'hashtag' ? ' active' : '')} title="Hashtag" onClick={onShowHashtag}>
+            <Hash size={22} />
+          </button>
+        )}
+        {isAdmin && onShowAdmin && (
+          <button type="button" className={'rail-btn' + (view === 'admin' ? ' active' : '')} title="Quản trị" onClick={onShowAdmin}>
+            <Shield size={22} />
+          </button>
+        )}
         <button type="button" className="rail-btn" title="Tạo nhóm" onClick={onCreateGroup}>
           <UsersRound size={22} />
         </button>

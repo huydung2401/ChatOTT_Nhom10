@@ -4,6 +4,7 @@ import Avatar from './Avatar';
 import { MessageAttachments } from './Attachments';
 import SharedPostPreview from './SharedPostPreview';
 import { REACTIONS, formatClock, formatFull } from '../utils';
+import { ExtraBody, ExtraFooter, replacesText } from '../extensions/MessageExtras';
 
 export function ReactionPicker({ current, onPick, onClose }) {
   const ref = useRef(null);
@@ -86,7 +87,9 @@ function MessageItem({
                   <MessageAttachments conversationId={conversationId} attachments={m.attachments} onOpenImage={onOpenImage} />
                 )}
                 {m.sharedPostId && <SharedPostPreview postId={m.sharedPostId} onOpenPost={onOpenProfile} />}
-                {hasText && <span className="msg-text">{m.content}</span>}
+                <ExtraBody m={m} conversationId={conversationId} userId={userId} memberNames={memberNames} />
+                {hasText && !replacesText(m) && <span className="msg-text">{m.content}</span>}
+                <ExtraFooter m={m} userId={userId} />
               </>
             )}
             {!joinsNext && <time className="msg-time" dateTime={m.createdAt}>{formatClock(m.createdAt)}</time>}

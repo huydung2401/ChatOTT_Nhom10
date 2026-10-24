@@ -7,6 +7,7 @@ import { FileCard, Lightbox } from './Attachments';
 import { AiTab, AnalyticsTab } from './InsightTabs';
 import { api, attachmentUrl } from '../api';
 import { formatFull, lastSeenText } from '../utils';
+import ConversationManageTab from '../extensions/ConversationManageTab';
 
 // Tab anh/video hoac tep: doc attachments_by_conversation theo partition, 30 muc / trang.
 function AttachmentTab({ conversationId, kind, version }) {
@@ -161,7 +162,7 @@ export default function InfoPanel({ user, conversation, mediaVersion = 0, statsV
       </div>
 
       <div className="filters info-tabs" role="tablist" aria-label="Nội dung hội thoại">
-        {[['info', 'Thông tin'], ['media', 'Ảnh'], ['file', 'Tệp'], ['stats', 'Thống kê'], ['ai', 'AI']].map(([key, label]) => (
+        {[['info', 'Thông tin'], ['media', 'Ảnh'], ['file', 'Tệp'], ['stats', 'Thống kê'], ['ai', 'AI'], ['manage', 'Quản lý']].map(([key, label]) => (
           <button key={key} type="button" role="tab" aria-selected={tab === key} className={tab === key ? 'on' : ''} onClick={() => setTab(key)}>
             {label}
           </button>
@@ -174,6 +175,10 @@ export default function InfoPanel({ user, conversation, mediaVersion = 0, statsV
       {tab === 'stats' && <div className="info-scroll"><AnalyticsTab conversationId={id} version={statsVersion} /></div>}
       {tab === 'ai' && <div className="info-scroll"><AiTab conversationId={id} onJumpToMessage={onJumpToMessage} onToast={onToast} /></div>}
 
+      {tab === 'manage' && (
+        <ConversationManageTab conversation={conversation} user={user} members={detail?.members || []} onToast={onToast}
+          onChanged={() => { load(); onChanged(); }} />
+      )}
       {tab === 'info' && error && <p className="error-text pad">{error}</p>}
       {tab === 'info' && !detail && !error && <p className="muted pad"><LoaderCircle size={15} className="spin" /> Đang tải…</p>}
 

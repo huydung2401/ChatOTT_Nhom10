@@ -21,4 +21,8 @@ const client = new cassandra.Client({
     }
 });
 
+// NFR-14 (them): muc nhat quan cau hinh duoc, vd. CASSANDRA_CONSISTENCY=localQuorum khi chay cum 3 nut.
+const configuredConsistency = cassandra.types.consistencies[process.env.CASSANDRA_CONSISTENCY || ''];
+if (configuredConsistency !== undefined) client.options.queryOptions.consistency = configuredConsistency;
+
 module.exports = client;

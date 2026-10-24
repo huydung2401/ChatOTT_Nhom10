@@ -19,6 +19,8 @@ const { requireAuth, rejectSpoofedIdentity } = require('./middleware/auth');
 const { allowedOrigins, originGuard } = require('./middleware/security');
 const { requestLogger } = require('./middleware/requestLogger');
 const { notFound, errorHandler } = require('./middleware/errors');
+// Chuc nang moi (PT-01..PT-26, NFR-13/16/18): xem backend/src/extensions/index.js
+const extensions = require('./extensions');
 
 const REQUIRED_TABLES = [
     'users',
@@ -68,6 +70,8 @@ const REQUIRED_TABLES = [
     'comment_client_ids',
     'pinned_messages_by_conversation'
 ];
+// migration 009-012 (chuc nang moi)
+REQUIRED_TABLES.push(...extensions.REQUIRED_TABLES);
 
 // Cot moi tren bang cu ma backend truy van (migration 001, 002).
 const REQUIRED_COLUMNS = {
@@ -107,6 +111,7 @@ function createApp() {
     app.use(cors({ origin: allowedOrigins(), credentials: true }));
     app.use(express.json({ limit: '32kb' }));
     app.use(requestLogger);
+    extensions.mountEarly(app);
 
     // Kiem tra ket noi Cassandra (khong can dang nhap)
     const health = async (req, res) => {
@@ -130,14 +135,17 @@ function createApp() {
     };
     app.get('/api/health', health);
     app.get('/api/v1/health', health);
+    extensions.mountUploads(app);
 
     app.use('/api', originGuard);
+    extensions.mountPublic(app);
 
     // Cong khai: dang ky, dang nhap, dang xuat
     app.use('/api/v1/auth', authRouter);
 
     // Tu day tro xuong: bat buoc dang nhap, danh tinh lay tu phien
     app.use('/api/v1', requireAuth, rejectSpoofedIdentity);
+    extensions.mountAuthed(app);
     app.use('/api/v1', eventsRouter);
     app.use('/api/v1', usersRouter);
     app.use('/api/v1', conversationsRouter);
@@ -166,6 +174,7 @@ async function startServer() {
         }
         createApp().listen(PORT, () => {
             console.log(`Backend đang chạy tại http://localhost:${PORT}`);
+            extensions.startBackground();
         });
     } catch (error) {
         console.error('Không thể khởi động backend:', error.message);

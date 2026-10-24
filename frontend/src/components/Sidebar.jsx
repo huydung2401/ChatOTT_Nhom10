@@ -3,6 +3,8 @@ import { Search, X, Pin, PinOff, UserPlus, LoaderCircle, MessageSquarePlus } fro
 import Avatar from './Avatar';
 import { api } from '../api';
 import { fold, formatListTime } from '../utils';
+import { isMutedNow, usePrefs } from '../extensions/prefsStore';
+import { BellOff } from 'lucide-react';
 
 function previewText(item, user) {
   if (!item.lastMessagePreview) {
@@ -30,6 +32,7 @@ function ConversationItem({ item, user, active, onOpen, onTogglePin, typing }) {
             {typing
               ? <span className="conv-preview typing-preview">{item.conversationType === 'GROUP' ? typing.name.split(' ').slice(-1)[0] + ' đang nhập…' : 'Đang nhập…'}</span>
               : <span className="conv-preview">{previewText(item, user)}</span>}
+            {item.muted && <BellOff size={13} className="conv-pin" aria-label="Đã tắt thông báo" />}
             {item.pinned && <Pin size={13} className="conv-pin" aria-label="Đã ghim" />}
             {count && <span className="unread-count" aria-label={`${count} tin chưa đọc`}>{count}</span>}
             {item.unread && !count && <span className="unread-dot" aria-label="Có tin chưa đọc" />}
@@ -86,12 +89,16 @@ export default function Sidebar({
     };
   }, [q]);
 
+  // PT-11: hoi thoai luu tru chi hien o bo loc "Lưu trữ" (va khi tim kiem); hoi thoai tat thong bao co bieu tuong.
+  const prefs = usePrefs();
   const shown = useMemo(() => {
     const needle = fold(q);
-    return conversations.filter(c =>
-      (filter === 'all' || c.unread) && (!needle || fold(c.displayName).includes(needle))
-    );
-  }, [conversations, q, filter]);
+    return conversations
+      .map(c => ({ ...c, muted: isMutedNow(prefs[c.conversationId]), archived: Boolean(prefs[c.conversationId]?.archived) }))
+      .filter(c => (filter === 'archived' ? c.archived : (needle || !c.archived))
+        && (filter !== 'unread' || c.unread) && (!needle || fold(c.displayName).includes(needle)));
+  }, [conversations, q, filter, prefs]);
+  const archivedTotal = conversations.filter(c => prefs[c.conversationId]?.archived).length;
 
   const unreadTotal = conversations.filter(c => c.unread).length;
 
@@ -125,6 +132,10 @@ export default function Sidebar({
             onClick={() => setFilter('unread')}>
             Chưa đọc{unreadTotal > 0 ? ` (${unreadTotal})` : ''}
           </button>
+          {archivedTotal > 0 && (
+            <button type="button" role="tab" aria-selected={filter === 'archived'} className={filter === 'archived' ? 'on' : ''}
+              onClick={() => setFilter('archived')}>Lưu trữ ({archivedTotal})</button>
+          )}
         </div>
       )}
 

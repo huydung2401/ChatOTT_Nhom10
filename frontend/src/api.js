@@ -44,6 +44,10 @@ async function request(method, path, { body, signal, query } = {}) {
       error.message || 'Yêu cầu không thành công.',
       error.fields
     );
+    // Chuc nang moi: phien can ma 2FA / xac minh email -> App hien man hinh tuong ung.
+    if (res.status === 403 && ['TWO_FACTOR_REQUIRED', 'EMAIL_NOT_VERIFIED'].includes(apiError.code)) {
+      window.dispatchEvent(new CustomEvent('chatott:gate', { detail: { code: apiError.code } }));
+    }
     if (res.status === 401 && !path.startsWith('/auth/login')) {
       window.dispatchEvent(new CustomEvent('chatott:unauthorized', { detail: apiError }));
     }

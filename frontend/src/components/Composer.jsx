@@ -3,13 +3,14 @@ import { LoaderCircle, Paperclip, Reply, RotateCw, Send, X, AlertCircle } from '
 import { uploadAttachment, api } from '../api';
 import { FileGlyph } from './Attachments';
 import { MAX_FILES_PER_MESSAGE, MAX_UPLOAD_BYTES, UPLOAD_EXTENSIONS, fileExt, formatBytes } from '../utils';
+import useMentions from '../extensions/useMentions';
 
 const MAX_LEN = 2000;
 let seq = 0;
 
 // Khung soan tin: chu + tep dinh kem (chon tep, keo tha, dan anh) + thanh "dang tra loi".
 // Tep duoc tai len NGAY khi chon (trang thai PENDING o backend), gui tin chi gan ID tep.
-export default function Composer({ ref, conversationId, disabled, replyTo, onCancelReply, onSend, onTyping }) {
+export default function Composer({ ref, conversationId, disabled, replyTo, onCancelReply, onSend, onTyping, members = [], selfId }) {
   const [text, setText] = useState('');
   const [items, setItems] = useState([]); // { key, file, status: uploading|done|error, progress, attachment, error, preview }
   const [sending, setSending] = useState(false);
@@ -20,6 +21,7 @@ export default function Composer({ ref, conversationId, disabled, replyTo, onCan
   const itemsRef = useRef(items);
   useLayoutEffect(() => { itemsRef.current = items; }, [items]);
   const typingAt = useRef(0);
+  const mention = useMentions({ members, selfId, text, setText, areaRef }); // PT-13
 
   useEffect(() => {
     areaRef.current?.focus();
@@ -81,7 +83,7 @@ export default function Composer({ ref, conversationId, disabled, replyTo, onCan
     fresh.forEach(startUpload);
   }
 
-  useImperativeHandle(ref, () => ({ addFiles, focus: () => areaRef.current?.focus() }));
+  useImperativeHandle(ref, () => ({ addFiles, focus: () => areaRef.current?.focus(), insertText: t => { setText(t); areaRef.current?.focus(); } }));
 
   function remove(item) {
     uploads.current.get(item.key)?.();
@@ -113,8 +115,9 @@ export default function Composer({ ref, conversationId, disabled, replyTo, onCan
     setSending(true);
     setError('');
     try {
-      await onSend({ content: value, attachmentIds: ready.map(it => it.attachment.attachmentId) });
+      await onSend({ content: value, attachmentIds: ready.map(it => it.attachment.attachmentId), mentions: mention.mentionIds(value) });
       setText('');
+      mention.reset();
       items.forEach(it => it.preview && URL.revokeObjectURL(it.preview));
       setItems([]);
     } catch (err) {
@@ -134,6 +137,7 @@ export default function Composer({ ref, conversationId, disabled, replyTo, onCan
   }
 
   function onKeyDown(e) {
+    if (mention.onKeyDown(e)) return;
     // Enter gui, Shift+Enter xuong dong. Bo qua khi dang go bo go tieng Viet (IME).
     if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing && e.keyCode !== 229) {
       e.preventDefault();
@@ -198,6 +202,7 @@ export default function Composer({ ref, conversationId, disabled, replyTo, onCan
       )}
 
       {error && <p className="composer-error" role="alert">{error}</p>}
+      {mention.popup}
       <form className="composer" onSubmit={e => { e.preventDefault(); submit(); }}>
         <button type="button" className="icon-btn attach-btn" onClick={() => fileRef.current?.click()} disabled={disabled || items.length >= MAX_FILES_PER_MESSAGE}
           title={`Đính kèm ảnh, video, tệp (tối đa ${MAX_FILES_PER_MESSAGE} tệp, mỗi tệp ${formatBytes(MAX_UPLOAD_BYTES)})`} aria-label="Đính kèm tệp">

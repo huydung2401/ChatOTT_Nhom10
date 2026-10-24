@@ -6,6 +6,7 @@ import PostComposer from './PostComposer';
 import RelationActions from './RelationActions';
 import ShareDialog from './ShareDialog';
 import { api, postMediaUrl } from '../api';
+import StoriesBar from '../extensions/Stories';
 
 function PostLightbox({ post, index, onClose }) {
   const [i, setI] = useState(index);
@@ -99,7 +100,7 @@ export default function PostsPage({ user, userId = null, conversations, onOpenPr
         <div className="posts-col">
           {isProfile && profile && (
             <div className="card profile-page-head">
-              <div className="profile-cover" aria-hidden="true" />
+              <div className="profile-cover" aria-hidden="true" style={profile.coverUrl ? { backgroundImage: `url(${profile.coverUrl})` } : undefined} />
               <div className="pph-body">
                 <Avatar name={profile.displayName} seed={profile.userId} size={92} />
                 <div className="pph-text">
@@ -124,6 +125,7 @@ export default function PostsPage({ user, userId = null, conversations, onOpenPr
             </div>
           )}
           {!isProfile && <h2 className="posts-title">Bảng tin</h2>}
+          {!isProfile && <StoriesBar user={user} onToast={onToast} />}
           {(!isProfile || isMe) && (
             <PostComposer user={user} onToast={onToast} onPosted={p => setItems(l => [p, ...l])} />
           )}
