@@ -5,7 +5,7 @@ Tài liệu này mô tả phần **bổ sung** theo mục 4.2 và 5.2 của SRS.
 ## 1. Nguyên tắc: chỉ thêm, không sửa chức năng cũ
 
 - Toàn bộ backend mới nằm trong `backend/src/extensions/`. Toàn bộ frontend mới nằm trong `frontend/src/extensions/`.
-- Cơ sở dữ liệu: **4 migration mới 009–012, chỉ tạo 32 bảng mới**. Không có `ALTER` nào trên bảng cũ, không ghi dữ liệu cũ.
+- Cơ sở dữ liệu: **7 migration mới 009–015, chỉ tạo 56 bảng mới** (009–012: 32 bảng, 013: 3 bảng, 014–015: 21 bảng). Không có `ALTER` nào trên bảng cũ, không ghi dữ liệu cũ.
   Thông tin thêm của tin nhắn (đã sửa, bình chọn, sticker, nhắc tên, link) nằm ở bảng riêng `message_meta_by_conversation`.
 - Route và service cũ **không bị sửa**. Chức năng mới gắn vào bằng 3 cơ chế:
   1. Route mới (`/api/v1/...`) trong `extensions/routes.js`.
@@ -25,7 +25,7 @@ Tài liệu này mô tả phần **bổ sung** theo mục 4.2 và 5.2 của SRS.
 ### Kết quả đối chiếu với mã gốc (so từng byte với bản sao lưu trước khi phát triển)
 
 - 155 file gốc: **126 file giữ nguyên tuyệt đối**, 0 file bị xóa, 29 file có thêm dòng.
-- Trong 29 file đó chỉ có **18 dòng gốc được thay**, đều là mở rộng tại chỗ, không đổi hành vi cũ:
+- Trong 29 file đó chỉ có **21 dòng gốc được thay**, đều là mở rộng tại chỗ, không đổi hành vi cũ:
   thêm tham số vào chữ ký hàm (`ChatApp`, `Composer`, `send` trong `ChatWindow`), thêm phần tử vào danh sách tab của `InfoPanel`,
   thêm `style` ảnh bìa cho thẻ `profile-cover` (`PostsPage`, `ProfileModal`), Avatar hiện ảnh thật nếu có (không có thì vẫn chữ cái đầu),
   `MessageItem` ẩn chữ thay thế khi tin là sticker/bình chọn, `Sidebar` thêm bộ lọc "Lưu trữ",
@@ -37,14 +37,14 @@ Tài liệu này mô tả phần **bổ sung** theo mục 4.2 và 5.2 của SRS.
 ```bat
 npm install
 cd frontend && npm install && cd ..
-npm run deploy:migration            REM gõ MIGRATE để xác nhận (dùng db/verify-012-before/after.cql)
+npm run deploy:migration            REM gõ MIGRATE để xác nhận (dùng db/verify-015-before/after.cql, gồm migration 009–015)
 npm run hashtags:backfill -- --apply REM (tuỳ chọn) lập chỉ mục hashtag cho bài viết cũ
 npm run admin:grant -- an@chatott.demo
 npm run dev                          REM backend
 cd frontend && npm run dev           REM frontend
 ```
 
-Backend từ chối khởi động nếu chưa chạy migration 009–012 (giống các bảng cũ).
+Backend từ chối khởi động nếu chưa chạy migration 009–015 (giống các bảng cũ).
 Cấu hình mới: xem cuối `backend/.env.example`.
 
 ## 3. Bảng chức năng
@@ -92,6 +92,23 @@ Cấu hình mới: xem cuối `backend/.env.example`.
 Gemini: đặt `GEMINI_API_KEY` (lấy tại aistudio.google.com/apikey) trong `backend/.env`. Khóa chỉ nằm ở backend.
 Khi chưa có `ANTHROPIC_API_KEY`, chức năng gợi ý trả lời và dịch tin cũng dùng Gemini.
 
+### Bổ sung đợt 3: Công việc & Lịch, Nhắc nhở, Họp trực tuyến (migration 014–015, 21 bảng mới)
+
+Đặc tả chi tiết (ca sử dụng, quy tắc, ma trận quyền, lược đồ, API, nhất quán, kiến trúc họp, kết quả kiểm chứng): **`TAI_LIEU_CONG_VIEC_LICH_HOP.md`**.
+
+| Chức năng | API chính | Giao diện |
+|---|---|---|
+| Công việc cá nhân / nhóm, giao nhiều người, người phụ trách chính, ưu tiên, nhãn, trạng thái, bình luận, lịch sử | `/tasks`, `/tasks/:id/status`, `/tasks/:id/comments`, `/tasks/:id/history`, `/groups/:cid/tasks` | Nút lịch ✔ trên thanh điều hướng › Công việc |
+| Lịch cá nhân & lịch nhóm (ngày / tuần / tháng / danh sách), lịch bận thành viên, xung đột | `/calendar`, `/groups/:cid/calendar` | › Lịch |
+| Chống trùng lịch (khoảng nửa mở, khóa theo người, gợi ý giờ trống), kéo thả đổi giờ, trả về khi trùng | `POST /calendar/check`, `PATCH /calendar/events/:id` | Lịch, form công việc / cuộc họp |
+| Nhắc nhở bền vững (worker, không trùng, thử lại, đổi giờ theo đối tượng) | `/reminders` | › Nhắc nhở; chi tiết công việc |
+| Họp trực tuyến WebRTC: lên lịch / họp ngay, lời mời, link mời, âm thanh, hình, chia sẻ màn hình, chat, kết thúc | `/meetings`, `/meetings/:id/join|signal|chat|end` | › Cuộc họp; phòng họp toàn màn hình |
+| Thông báo công việc / cuộc họp / nhắc nhở mở đúng màn hình | `ref` trong `GET /notifications` | Mục Thông báo |
+
+Biến môi trường mới: `MEETING_TOKEN_SECRET`, `STUN_URLS`, `TURN_URLS`, `TURN_SECRET`, `REMINDER_INTERVAL_SECONDS`… (cuối `backend/.env.example`).
+File cũ được chèn thêm dòng trong đợt này: `NavRail.jsx` (nút Công việc), `ChatApp.jsx` (2 dòng), `NotificationsPage.jsx` (8 loại thông báo),
+`package.json` (nối `work.test.js`), `tests/fakeCassandra.js` (kiểu `set<timeuuid>`), `schema.cql` (nối 21 bảng). Không dòng gốc nào bị thay thêm.
+
 Phi chức năng:
 
 | Mã | Đã làm |
@@ -106,5 +123,6 @@ Phi chức năng:
 
 ## 4. Kiểm thử
 
-`npm test` chạy 15 bộ (thêm `backend/tests/extensions.test.js`, 23 test cho chức năng mới) trên Cassandra giả lập – 257 test.
+`npm test` chạy 16 bộ (thêm `backend/tests/extensions.test.js` và `backend/tests/work.test.js`) trên Cassandra giả lập – **269 test, tất cả đạt**.
+WebRTC đã kiểm chứng bằng 2 trình duyệt Chrome thật (camera/micro giả lập): âm thanh và hình ảnh truyền hai chiều, chia sẻ màn hình, chat, kết thúc họp.
 Chưa kiểm thử trên Cassandra thật / Docker trong lần phát triển này.
