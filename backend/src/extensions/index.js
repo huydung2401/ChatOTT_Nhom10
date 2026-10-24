@@ -40,6 +40,7 @@ const REQUIRED_TABLES = [
 ];
 
 function installHooks() {
+    require('./storage-hooks').installStorageHooks();
     notifyx.installNotificationHooks();
     profile.installPresencePersistence();
 }
@@ -98,7 +99,15 @@ const resetLimiter = rateLimit({
     message: 'Có quá nhiều lần thử đặt lại mật khẩu. Vui lòng thử lại sau.'
 });
 
+const passwordLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, max: Number(process.env.ACCOUNT_RATE_LIMIT || 20), key: req => req.user.userId,
+    message: 'Bạn thao tác quá nhiều lần, hãy thử lại sau ít phút.'
+});
+
 function mountPublic(app) {
+    // Doi mat khau theo duong dan trong SRS (muc 6.3); giong POST /me/password.
+    app.post('/api/v1/auth/password/change', requireAuth, rejectSpoofedIdentity, security.guard(), passwordLimiter, async (req, res) =>
+        res.json(await security.changePassword(req.user, req.sessionHash, req.body || {})));
     app.post('/api/v1/auth/password/forgot', forgotLimiter, async (req, res) => res.json(await security.requestPasswordReset(req.body || {})));
     app.post('/api/v1/auth/password/reset', resetLimiter, async (req, res) => res.json(await security.resetPassword(req.body || {})));
     app.post('/api/v1/auth/2fa/verify', requireAuth, async (req, res) =>
@@ -158,6 +167,7 @@ async function startBackground() {
     notifyx.startReminderScheduler();
     require('./reminder.service').startWorker();
     profile.loadPersistedPresence().catch(error => console.warn('[ext] Không tải được lần cuối truy cập:', error.message));
+    await require('./lib/redisRateLimit').connect().catch(error => console.warn('[redis] Không kết nối được (giới hạn tốc độ):', error.message));
     await require('./realtime-redis').installRedisBridge().catch(error => console.warn('[redis] Không kết nối được:', error.message));
 }
 
