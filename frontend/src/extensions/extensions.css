@@ -97,7 +97,7 @@
 .ext-link-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; font-size: 13px; }
 .ext-link-site { color: var(--muted); font-size: 11.5px; display: inline-flex; align-items: center; gap: 3px; }
 .ext-link-desc { color: var(--text-2); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-.ext-mention-badge { display: inline-flex; align-items: center; gap: 3px; margin-top: 4px; font-size: 11.5px; color: var(--teal-deep); font-weight: 600; }
+.ext-mention-badge { display: flex; width: fit-content; align-items: center; gap: 3px; margin-top: 4px; font-size: 11.5px; color: var(--teal-deep); font-weight: 600; }
 .ext-edited { display: block; font-size: 11px; color: var(--muted); font-style: italic; margin-top: 2px; }
 .ext-audio { display: block; width: min(280px, 62vw); height: 40px; margin: 2px 0; }
 
@@ -221,3 +221,10 @@
   .ext-story-tile { width: 60px; }
 }
 .ext-qr { display: block; margin: 8px 0; padding: 8px; background: #fff; border-radius: var(--radius-m); }
+.ext-grow > .ext-badge { align-self: flex-start; margin-left: 0; margin-top: 2px; }
+/* Che do toi: cac nhan nen sang cua giao dien cu */
+:root[data-theme='dark'] .day-divider span,
+:root[data-theme='dark'] .system-msg span,
+:root[data-theme='dark'] .db-badge { background: #1e2d39; color: var(--text-2); border-color: var(--line); }
+:root[data-theme='dark'] .info-actions,
+:root[data-theme='dark'] .friends-section { border-bottom-color: #0f1820; }
