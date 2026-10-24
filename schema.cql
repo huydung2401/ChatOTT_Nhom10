@@ -461,3 +461,351 @@ CREATE TABLE IF NOT EXISTS pinned_messages_by_conversation (
     pinned_at TIMESTAMP,
     PRIMARY KEY ((conversation_id), message_id)
 ) WITH CLUSTERING ORDER BY (message_id DESC);
+
+-- ===== 009_account_security.cql =====
+-- Migration 009: tai khoan & bao mat (PT-01, PT-02, PT-03, PT-04, PT-09, PT-17, NFR-16 2FA).
+-- CHI THEM bang moi. Khong sua / xoa bang cu. TTL dat o cau lenh ghi (USING TTL), khong dat tren bang.
+
+-- Trang thai bao mat cua tai khoan: vai tro, khoa, moc doi mat khau, xac minh email, 2FA.
+CREATE TABLE IF NOT EXISTS account_security (
+    user_id text PRIMARY KEY,
+    email text,
+    role text,
+    locked boolean,
+    locked_reason text,
+    locked_at timestamp,
+    locked_by text,
+    password_changed_at timestamp,
+    email_verified_at timestamp,
+    verification_required boolean,
+    totp_secret text,
+    totp_enabled boolean,
+    updated_at timestamp
+);
+
+-- PT-01, PT-17: cac phien dang nhap cua 1 nguoi (dang xuat tu xa, huy phien khi doi mat khau).
+CREATE TABLE IF NOT EXISTS sessions_by_user (
+    user_id text,
+    session_hash text,
+    created_at timestamp,
+    last_seen_at timestamp,
+    user_agent text,
+    ip text,
+    two_factor_ok boolean,
+    PRIMARY KEY ((user_id), session_hash)
+);
+
+-- PT-02: token dat lai mat khau (chi luu SHA-256), ghi bang USING TTL 1800, dung mot lan.
+CREATE TABLE IF NOT EXISTS password_reset_tokens (
+    token_hash text PRIMARY KEY,
+    user_id text,
+    email text,
+    created_at timestamp
+);
+
+-- PT-09: ma xac minh email (chi luu hash), ghi bang USING TTL.
+CREATE TABLE IF NOT EXISTS email_verification_codes (
+    user_id text PRIMARY KEY,
+    code_hash text,
+    email text,
+    expires_at timestamp,
+    attempts int
+);
+
+-- PT-04: anh dai dien / anh bia (noi dung tep tren o dia, Cassandra chi giu khoa luu tru).
+CREATE TABLE IF NOT EXISTS user_media (
+    user_id text PRIMARY KEY,
+    avatar_key text,
+    avatar_mime text,
+    cover_key text,
+    cover_mime text,
+    updated_at timestamp
+);
+
+-- Han che 3.3: "lan cuoi truy cap" luu ben vung, khong mat khi khoi dong lai backend.
+CREATE TABLE IF NOT EXISTS user_last_seen (
+    user_id text PRIMARY KEY,
+    last_seen_at timestamp
+);
+
+-- ===== 010_chat_groups_extras.cql =====
+-- Migration 010: tin nhan & nhom mo rong (PT-05, PT-06, PT-10, PT-11, PT-12, PT-13, PT-19, PT-20, PT-21).
+-- CHI THEM bang moi. Bang messages_by_conversation giu nguyen; thong tin them cua tin nam o bang rieng.
+
+-- Thong tin them cua tin nhan: da sua, binh chon, sticker, tin thoai, nhac ten, xem truoc lien ket.
+CREATE TABLE IF NOT EXISTS message_meta_by_conversation (
+    conversation_id uuid,
+    message_id timeuuid,
+    kind text,
+    edited_at timestamp,
+    edit_count int,
+    poll_id timeuuid,
+    sticker_id text,
+    voice_ms int,
+    mention_ids set<text>,
+    link_url text,
+    link_title text,
+    link_description text,
+    link_image text,
+    link_site text,
+    PRIMARY KEY ((conversation_id), message_id)
+) WITH CLUSTERING ORDER BY (message_id DESC);
+
+-- PT-06: lich su sua cua 1 tin, moi nhat truoc.
+CREATE TABLE IF NOT EXISTS message_edits_by_message (
+    conversation_id uuid,
+    message_id timeuuid,
+    edited_at timestamp,
+    previous_content text,
+    editor_id text,
+    PRIMARY KEY ((conversation_id, message_id), edited_at)
+) WITH CLUSTERING ORDER BY (edited_at DESC);
+
+-- PT-05: vai tro trong nhom (OWNER van la conversations.created_by; bang nay giu DEPUTY / MEMBER).
+CREATE TABLE IF NOT EXISTS conversation_members (
+    conversation_id uuid,
+    user_id text,
+    role text,
+    updated_at timestamp,
+    updated_by text,
+    PRIMARY KEY ((conversation_id), user_id)
+);
+
+-- PT-05: nhan quyen truong nhom cho nhom cu chua co truong nhom (LWT IF NOT EXISTS, chi 1 nguoi thang).
+CREATE TABLE IF NOT EXISTS group_owner_claims (
+    conversation_id uuid PRIMARY KEY,
+    user_id text,
+    claimed_at timestamp
+);
+
+-- PT-10: anh va mo ta nhom.
+CREATE TABLE IF NOT EXISTS group_profiles (
+    conversation_id uuid PRIMARY KEY,
+    description text,
+    avatar_key text,
+    avatar_mime text,
+    updated_at timestamp,
+    updated_by text
+);
+
+-- PT-11: tat thong bao / luu tru hoi thoai (rieng tung nguoi).
+CREATE TABLE IF NOT EXISTS conversation_prefs_by_user (
+    user_id text,
+    conversation_id uuid,
+    muted_until timestamp,
+    archived boolean,
+    updated_at timestamp,
+    PRIMARY KEY ((user_id), conversation_id)
+);
+
+-- PT-13: cac lan duoc nhac ten, moi nhat truoc.
+CREATE TABLE IF NOT EXISTS mentions_by_user (
+    user_id text,
+    created_at timestamp,
+    message_id timeuuid,
+    conversation_id uuid,
+    actor_id text,
+    preview text,
+    PRIMARY KEY ((user_id), created_at, message_id)
+) WITH CLUSTERING ORDER BY (created_at DESC, message_id DESC);
+
+-- PT-19: link moi vao nhom.
+CREATE TABLE IF NOT EXISTS group_invite_links (
+    invite_code text PRIMARY KEY,
+    conversation_id uuid,
+    created_by text,
+    created_at timestamp,
+    require_approval boolean,
+    revoked boolean
+);
+
+CREATE TABLE IF NOT EXISTS invite_links_by_conversation (
+    conversation_id uuid,
+    invite_code text,
+    created_by text,
+    created_at timestamp,
+    require_approval boolean,
+    revoked boolean,
+    PRIMARY KEY ((conversation_id), invite_code)
+);
+
+-- PT-19: yeu cau tham gia cho duyet.
+CREATE TABLE IF NOT EXISTS group_join_requests (
+    conversation_id uuid,
+    user_id text,
+    requested_at timestamp,
+    invite_code text,
+    PRIMARY KEY ((conversation_id), user_id)
+);
+
+-- PT-20: binh chon trong nhom.
+CREATE TABLE IF NOT EXISTS polls_by_conversation (
+    conversation_id uuid,
+    poll_id timeuuid,
+    question text,
+    options list<text>,
+    multiple boolean,
+    created_by text,
+    message_id timeuuid,
+    message_created_at timestamp,
+    closed boolean,
+    PRIMARY KEY ((conversation_id), poll_id)
+) WITH CLUSTERING ORDER BY (poll_id DESC);
+
+CREATE TABLE IF NOT EXISTS poll_votes (
+    poll_id timeuuid,
+    user_id text,
+    choices set<int>,
+    voted_at timestamp,
+    PRIMARY KEY ((poll_id), user_id)
+);
+
+-- ===== 011_social_notifications_extras.cql =====
+-- Migration 011: mang xa hoi & thong bao mo rong (PT-14, PT-15, PT-22, PT-23, PT-24, PT-25).
+-- CHI THEM bang moi. Story het han nho USING TTL 86400 o cau lenh ghi.
+
+-- PT-22: bai da luu (danh sach theo thoi diem luu + khoa de bat/tat).
+CREATE TABLE IF NOT EXISTS saved_posts_by_user (
+    user_id text,
+    saved_at timestamp,
+    post_id timeuuid,
+    PRIMARY KEY ((user_id), saved_at, post_id)
+) WITH CLUSTERING ORDER BY (saved_at DESC, post_id DESC);
+
+CREATE TABLE IF NOT EXISTS saved_post_keys (
+    user_id text,
+    post_id timeuuid,
+    saved_at timestamp,
+    PRIMARY KEY ((user_id), post_id)
+);
+
+-- PT-23: story 24 gio cua 1 tac gia, moi nhat truoc.
+CREATE TABLE IF NOT EXISTS stories_by_author (
+    author_id text,
+    story_id timeuuid,
+    content text,
+    background text,
+    media_key text,
+    media_mime text,
+    created_at timestamp,
+    PRIMARY KEY ((author_id), story_id)
+) WITH CLUSTERING ORDER BY (story_id DESC);
+
+CREATE TABLE IF NOT EXISTS story_views (
+    story_id timeuuid,
+    viewer_id text,
+    viewed_at timestamp,
+    PRIMARY KEY ((story_id), viewer_id)
+);
+
+-- PT-24: hashtag -> bai viet (moi nhat truoc) va bai -> hashtag (de don khi sua / xoa bai).
+CREATE TABLE IF NOT EXISTS posts_by_hashtag (
+    hashtag text,
+    post_id timeuuid,
+    author_id text,
+    PRIMARY KEY ((hashtag), post_id)
+) WITH CLUSTERING ORDER BY (post_id DESC);
+
+CREATE TABLE IF NOT EXISTS hashtags_by_post (
+    post_id timeuuid,
+    hashtag text,
+    PRIMARY KEY ((post_id), hashtag)
+);
+
+-- PT-25: loai thong bao muon nhan (khong co dong = bat).
+CREATE TABLE IF NOT EXISTS notification_settings_by_user (
+    user_id text,
+    type text,
+    enabled boolean,
+    PRIMARY KEY ((user_id), type)
+);
+
+-- PT-14: dang ky Web Push cua tung trinh duyet.
+CREATE TABLE IF NOT EXISTS push_subscriptions_by_user (
+    user_id text,
+    endpoint_hash text,
+    endpoint text,
+    p256dh text,
+    auth text,
+    user_agent text,
+    created_at timestamp,
+    PRIMARY KEY ((user_id), endpoint_hash)
+);
+
+-- PT-15: cong viec AI da xac nhan, gom theo ngay den han (YYYY-MM-DD) de bo hen gio chi doc vai partition.
+CREATE TABLE IF NOT EXISTS task_reminders_by_day (
+    due_day text,
+    task_id timeuuid,
+    conversation_id uuid,
+    title text,
+    assignee_id text,
+    reminded boolean,
+    created_at timestamp,
+    PRIMARY KEY ((due_day), task_id)
+);
+
+-- ===== 012_moderation_admin.cql =====
+-- Migration 012: bao cao vi pham, kiem duyet, quan tri (PT-07, PT-08, PT-16).
+-- CHI THEM bang moi.
+
+-- PT-07: ban ghi bao cao (nguon su that).
+CREATE TABLE IF NOT EXISTS reports (
+    report_id timeuuid PRIMARY KEY,
+    reporter_id text,
+    target_type text,
+    target_id text,
+    target_owner_id text,
+    conversation_id uuid,
+    post_id timeuuid,
+    message_created_at timestamp,
+    reason text,
+    details text,
+    excerpt text,
+    status text,
+    created_at timestamp,
+    resolved_by text,
+    resolved_at timestamp,
+    resolution text
+);
+
+-- Hang doi cho quan tri: bao cao theo trang thai (OPEN / RESOLVED / DISMISSED), moi nhat truoc.
+CREATE TABLE IF NOT EXISTS reports_by_status (
+    status text,
+    report_id timeuuid,
+    target_type text,
+    target_id text,
+    reporter_id text,
+    reason text,
+    excerpt text,
+    PRIMARY KEY ((status), report_id)
+) WITH CLUSTERING ORDER BY (report_id DESC);
+
+-- Chong bao cao trung: 1 nguoi bao cao 1 doi tuong 1 lan (LWT IF NOT EXISTS).
+CREATE TABLE IF NOT EXISTS report_keys (
+    reporter_id text,
+    target_key text,
+    report_id timeuuid,
+    PRIMARY KEY ((reporter_id), target_key)
+);
+
+-- PT-08: nhat ky kiem duyet theo ngay, moi nhat truoc.
+CREATE TABLE IF NOT EXISTS moderation_log (
+    day text,
+    action_id timeuuid,
+    admin_id text,
+    action text,
+    target_type text,
+    target_id text,
+    note text,
+    PRIMARY KEY ((day), action_id)
+) WITH CLUSTERING ORDER BY (action_id DESC);
+
+-- PT-08: noi dung bi quan tri vien an (de khoi phuc dung noi dung do).
+CREATE TABLE IF NOT EXISTS moderation_state (
+    target_key text PRIMARY KEY,
+    hidden boolean,
+    hidden_by text,
+    hidden_at timestamp,
+    note text
+);
+

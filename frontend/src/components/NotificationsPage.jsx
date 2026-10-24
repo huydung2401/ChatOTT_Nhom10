@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { AtSign, Clock, UserRoundPlus, ShieldCheck } from 'lucide-react';
 import { Bell, CheckCheck, Heart, LoaderCircle, MessageCircle, MessageSquare, Reply, RotateCcw, Share2, UserCheck, UserPlus } from 'lucide-react';
 import Avatar from './Avatar';
 import { api } from '../api';
@@ -12,6 +13,12 @@ const KIND = {
   FRIEND_REQUEST: { icon: UserPlus, text: () => 'đã gửi cho bạn lời mời kết bạn' },
   FRIEND_ACCEPT: { icon: UserCheck, text: () => 'đã chấp nhận lời mời kết bạn của bạn' },
   MESSAGE: { icon: MessageCircle, text: n => `${n.count > 1 ? `đã gửi ${n.count} tin nhắn mới` : 'đã gửi tin nhắn'}${n.preview ? `: “${n.preview}”` : ''}` }
+  ,
+  // Chuc nang moi
+  MENTION: { icon: AtSign, text: n => `đã nhắc đến bạn${n.preview ? `: “${n.preview}”` : ''}` },
+  TASK_DUE: { icon: Clock, text: n => `Nhắc hạn công việc — ${n.preview}` },
+  GROUP_JOIN_REQUEST: { icon: UserRoundPlus, text: n => n.preview || 'muốn tham gia nhóm' },
+  REPORT_UPDATE: { icon: ShieldCheck, text: n => n.preview || 'Báo cáo của bạn đã được xử lý.' }
 };
 
 export function describe(n) {

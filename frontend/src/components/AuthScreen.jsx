@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Eye, EyeOff, LoaderCircle } from 'lucide-react';
 import Logo from './Logo';
 import { api } from '../api';
+import { ForgotPasswordDialog } from '../extensions/AuthExtras';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
@@ -77,6 +78,7 @@ const EMPTY = { displayName: '', email: '', password: '', confirmPassword: '' };
 
 export default function AuthScreen({ onLoggedIn, notice }) {
   const [mode, setMode] = useState('login');
+  const [forgot, setForgot] = useState(false); // PT-02
   const [form, setForm] = useState(EMPTY);
   const [errors, setErrors] = useState({});
   const [formError, setFormError] = useState('');
@@ -172,6 +174,9 @@ export default function AuthScreen({ onLoggedIn, notice }) {
               onChange={set('confirmPassword')} error={errors.confirmPassword} autoComplete="new-password" />
           )}
           {!isLogin && <p className="hint">Ít nhất 8 ký tự, gồm cả chữ và số.</p>}
+          {isLogin && (
+            <p className="ext-forgot"><button type="button" className="link-btn" onClick={() => setForgot(true)}>Quên mật khẩu?</button></p>
+          )}
 
           <button className="btn primary block" type="submit" disabled={busy}>
             {busy && <LoaderCircle size={18} className="spin" />}
@@ -186,6 +191,7 @@ export default function AuthScreen({ onLoggedIn, notice }) {
           </p>
         </form>
       </section>
+      {forgot && <ForgotPasswordDialog initialEmail={form.email} onClose={() => setForgot(false)} />}
     </div>
   );
 }

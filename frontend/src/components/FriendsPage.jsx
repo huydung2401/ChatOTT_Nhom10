@@ -3,6 +3,7 @@ import { LoaderCircle, Search, X } from 'lucide-react';
 import Avatar from './Avatar';
 import RelationActions from './RelationActions';
 import { api } from '../api';
+import { FriendSuggestions } from '../extensions/SocialExtras';
 import { formatListTime } from '../utils';
 
 const TABS = [
@@ -103,6 +104,8 @@ export default function FriendsPage({ version, onOpenProfile, onMessage, onToast
             </ul>
           </section>
         )}
+
+        {q.length < 2 && <FriendSuggestions version={version} onOpenProfile={onOpenProfile} onToast={onToast} />}
 
         <div className="filters friends-tabs" role="tablist" aria-label="Danh sách">
           {TABS.map(([key, label]) => (

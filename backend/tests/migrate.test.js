@@ -371,19 +371,23 @@ test('007 sau 006: 3 bảng + 1 cột; backfill gốc / phản hồi từ bình 
 });
 
 
+// Gioi han dung pham vi 008 (cac migration 009+ co kiem thu rieng trong extensions.test.js).
+const UPTO_008 = fs.mkdtempSync(path.join(os.tmpdir(), 'mig008-'));
+for (const f of fs.readdirSync(UPTO_007)) fs.copyFileSync(path.join(UPTO_007, f), path.join(UPTO_008, f));
+fs.copyFileSync(path.resolve(__dirname, '../../db/migrations/008_pinned_messages.cql'), path.join(UPTO_008, '008_pinned_messages.cql'));
 test('008 sau 007: chỉ tạo bảng ghim tin, không ghi dữ liệu; dữ liệu cũ giữ nguyên; chạy lại = 0', async () => {
     const client = createSchemaStub();
     await runMigration(client, { keyspace: 'chat_ott', dryRun: false, log: quiet, migrationsDir: UPTO_007 });
     const snap = () => JSON.stringify(Object.fromEntries(Object.entries(client.fake.data).filter(([k]) => k !== 'pinned_messages_by_conversation').map(([k, v]) => [k, [...v.values()]])));
     const before = snap();
-    const dry = await runMigration(client, { keyspace: 'chat_ott', dryRun: true, log: quiet });
+    const dry = await runMigration(client, { keyspace: 'chat_ott', dryRun: true, log: quiet, migrationsDir: UPTO_008 });
     assert.deepEqual(dry.created, ['pinned_messages_by_conversation']);
-    const r = await runMigration(client, { keyspace: 'chat_ott', dryRun: false, log: quiet });
+    const r = await runMigration(client, { keyspace: 'chat_ott', dryRun: false, log: quiet, migrationsDir: UPTO_008 });
     assert.deepEqual(r.created, ['pinned_messages_by_conversation']);
     assert.deepEqual(r.added, []);
     assert.equal(snap(), before, 'không ghi vào bảng cũ');
     assert.equal(client.fake.data.pinned_messages_by_conversation.size, 0);
-    const again = await runMigration(client, { keyspace: 'chat_ott', dryRun: false, log: quiet });
+    const again = await runMigration(client, { keyspace: 'chat_ott', dryRun: false, log: quiet, migrationsDir: UPTO_008 });
     assert.deepEqual(again.created, []);
     assert.equal(again.executedWrites, 0);
 });

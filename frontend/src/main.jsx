@@ -4,6 +4,8 @@ import './index.css'
 import App from './App.jsx'
 import ErrorBoundary from './components/ErrorBoundary.jsx'
 import './App.css'
+import './extensions/extensions.css'
+import './extensions/theme.js'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>

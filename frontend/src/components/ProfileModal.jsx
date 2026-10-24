@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { LoaderCircle, Newspaper, Pencil, X } from 'lucide-react';
 import Avatar from './Avatar';
 import RelationActions from './RelationActions';
+import { ReportUserButton } from '../extensions/SocialExtras';
 import { api } from '../api';
 
 // Xem ho so (nguoi khac) hoac xem + sua ho so (chinh minh). Khong hien email nguoi khac.
@@ -52,7 +53,7 @@ export default function ProfileModal({ userId, me, onClose, onMessage, onToast, 
         {!profile && !error && <p className="muted"><LoaderCircle size={15} className="spin" /> Đang tải hồ sơ…</p>}
         {profile && (
           <>
-            <div className="profile-cover" aria-hidden="true" />
+            <div className="profile-cover" aria-hidden="true" style={profile.coverUrl ? { backgroundImage: `url(${profile.coverUrl})` } : undefined} />
             <div className="profile-head">
               <Avatar name={profile.displayName} seed={profile.userId} size={84} />
               <h3>{profile.displayName}</h3>
@@ -99,6 +100,9 @@ export default function ProfileModal({ userId, me, onClose, onMessage, onToast, 
                     onMessage={onMessage ? id => { onClose(); onMessage(id); } : null}
                     onChanged={() => { load(); onRelationChanged?.(); }}
                   />
+                )}
+                {!isMe && (
+                  <div className="rel-actions ext-report-user"><ReportUserButton userId={profile.userId} displayName={profile.displayName} onToast={onToast} /></div>
                 )}
               </>
             )}
