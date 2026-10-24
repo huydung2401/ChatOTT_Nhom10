@@ -204,7 +204,7 @@ async function notifyMany(userIds, actor, type, m, preview, keySuffix) {
     }
 }
 
-const fmt = d => new Date(d).toISOString().slice(0, 16).replace('T', ' ') + ' (UTC)';
+const fmt = d => require('./lib/timefmt').formatWhen(d);
 
 async function writeInvites(meetingId, inviterId, userIds, status = 'PENDING') {
     const now = new Date();

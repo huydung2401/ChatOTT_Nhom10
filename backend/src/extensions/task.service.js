@@ -239,7 +239,7 @@ async function createTask(user, body = {}, { idemKey = null } = {}) {
                 .catch(() => {});
         }
     }
-    await notify(assignees, user, 'TASK_ASSIGNED', task, due ? `hạn ${due.toISOString().slice(0, 16).replace('T', ' ')} (UTC)` : '', 'create');
+    await notify(assignees, user, 'TASK_ASSIGNED', task, due ? `hạn ${require('./lib/timefmt').formatWhen(due)}` : '', 'create');
     publish(task);
     return dto(task, user, null, { detail: true });
 }
