@@ -424,3 +424,8 @@
 
 /* An nut "Tao nhom" tren thanh dieu huong trai (trung voi nut canh o tim kiem o danh sach hoi thoai). Ma NavRail.jsx giu nguyen. */
 .rail .rail-btn[title="Tạo nhóm"] { display: none; }
+/* Che do toi: o tim hoi thoai (.search dat cung nen sang trong App.css); o chu ben trong de trong suot. */
+:root[data-theme='dark'] .search { background: #1e2d39; }
+:root[data-theme='dark'] .search:focus-within,
+:root[data-theme='dark'] .search.boxed { background: var(--paper); }
+:root[data-theme='dark'] .search input { background-color: transparent; }
