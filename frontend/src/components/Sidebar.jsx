@@ -5,6 +5,8 @@ import { api } from '../api';
 import { fold, formatListTime } from '../utils';
 import { isMutedNow, usePrefs } from '../extensions/prefsStore';
 import { BellOff } from 'lucide-react';
+import { Mail, MailOpen } from 'lucide-react';
+import { useManualUnread } from '../hooks/useManualUnread';
 
 function previewText(item, user) {
   if (!item.lastMessagePreview) {
@@ -17,7 +19,7 @@ function previewText(item, user) {
   return item.lastMessagePreview;
 }
 
-function ConversationItem({ item, user, active, onOpen, onTogglePin, typing }) {
+function ConversationItem({ item, user, active, onOpen, onTogglePin, onToggleUnread, typing }) {
   const count = item.unread && item.unreadCount > 0 ? (item.unreadCount > 99 ? '99+' : String(item.unreadCount)) : null;
   return (
     <li className={'conv' + (active ? ' active' : '') + (item.unread ? ' unread' : '')}>
@@ -39,6 +41,7 @@ function ConversationItem({ item, user, active, onOpen, onTogglePin, typing }) {
           </span>
         </span>
       </button>
+      
       <button
         type="button"
         className="icon-btn conv-action"
@@ -48,6 +51,17 @@ function ConversationItem({ item, user, active, onOpen, onTogglePin, typing }) {
       >
         {item.pinned ? <PinOff size={16} /> : <Pin size={16} />}
       </button>
+	  {(item.manual || !item.unread) && (
+        <button
+          type="button"
+          className="icon-btn conv-action conv-action-unread"
+          onClick={() => onToggleUnread(item)}
+          title={item.manual ? 'Đánh dấu đã đọc' : 'Đánh dấu chưa đọc'}
+          aria-label={item.manual ? 'Đánh dấu đã đọc' : 'Đánh dấu chưa đọc'}
+        >
+          {item.manual ? <MailOpen size={16} /> : <Mail size={16} />}
+        </button>
+      )}
     </li>
   );
 }
@@ -91,16 +105,27 @@ export default function Sidebar({
 
   // PT-11: hoi thoai luu tru chi hien o bo loc "Lưu trữ" (va khi tim kiem); hoi thoai tat thong bao co bieu tuong.
   const prefs = usePrefs();
+  const manualUnread = useManualUnread();
   const shown = useMemo(() => {
     const needle = fold(q);
     return conversations
-      .map(c => ({ ...c, muted: isMutedNow(prefs[c.conversationId]), archived: Boolean(prefs[c.conversationId]?.archived) }))
+      .map(c => {
+        const manual = manualUnread.isManual(c.conversationId);
+        return { ...c, muted: isMutedNow(prefs[c.conversationId]), archived: Boolean(prefs[c.conversationId]?.archived), manual, unread: c.unread || manual };
+      })
       .filter(c => (filter === 'archived' ? c.archived : (needle || !c.archived))
         && (filter !== 'unread' || c.unread) && (!needle || fold(c.displayName).includes(needle)));
-  }, [conversations, q, filter, prefs]);
+  }, [conversations, q, filter, prefs, manualUnread.isManual]);
   const archivedTotal = conversations.filter(c => prefs[c.conversationId]?.archived).length;
 
-  const unreadTotal = conversations.filter(c => c.unread).length;
+  const unreadTotal = conversations.filter(c => c.unread || manualUnread.isManual(c.conversationId)).length;
+
+  // Mo hoi thoai dang bi danh dau chua doc thu cong thi bo co.
+  const openConversation = id => {
+    if (manualUnread.isManual(id)) manualUnread.markRead(id).catch(() => {});
+    onOpen(id);
+  };
+  const toggleUnread = item => (item.manual ? manualUnread.markRead(item.conversationId) : manualUnread.markUnread(item.conversationId)).catch(() => {});
 
   return (
     <aside className="sidebar" aria-label="Danh sách hội thoại">
@@ -182,8 +207,9 @@ export default function Sidebar({
               item={item}
               user={user}
               active={item.conversationId === activeId}
-              onOpen={onOpen}
+              onOpen={openConversation}
               onTogglePin={onTogglePin}
+              onToggleUnread={toggleUnread}
               typing={item.conversationId !== activeId ? typingIn[item.conversationId] : null}
             />
           ))}
