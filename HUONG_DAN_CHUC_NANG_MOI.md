@@ -115,6 +115,12 @@ Biến môi trường mới: `MEETING_TOKEN_SECRET`, `STUN_URLS`, `TURN_URLS`, `
 File cũ được chèn thêm dòng trong đợt này: `NavRail.jsx` (nút Công việc), `ChatApp.jsx` (2 dòng), `NotificationsPage.jsx` (8 loại thông báo),
 `package.json` (nối `work.test.js`), `tests/fakeCassandra.js` (kiểu `set<timeuuid>`), `schema.cql` (nối 21 bảng). Không dòng gốc nào bị thay thêm.
 
+### Bổ sung: đánh dấu cuộc hội thoại đã đọc/chưa đọc (migration 017: manual_unread_by_user)
+
+| Chức năng | API chính | Giao diện |
+|---|---|---|
+| Đánh dấu hội thoại chưa đọc / bỏ đánh dấu: người dùng tự đặt cờ “chưa đọc” cho một hội thoại (chat 1-1 hoặc nhóm) để nhớ quay lại trả lời sau. Cờ là riêng của từng người, người khác không thấy và không ảnh hưởng trạng thái “đã xem”. Mở hội thoại thì cờ tự bỏ. | `POST /conversations/:id/unread` (đặt cờ), `DELETE /conversations/:id/unread` (bỏ cờ), `GET /me/manual-unread` (danh sách hội thoại đang có cờ) | Danh sách hội thoại: rê chuột vào một hàng sẽ hiện nút phong bì cạnh nút ghim. Bấm phong bì đóng thì hàng có chấm xanh và tính vào tab “Chưa đọc (n)”. Bấm phong bì mở thì bỏ đánh dấu. Mở hội thoại cũng bỏ cờ. Cờ cập nhật ngay khi bấm, đồng bộ giữa các tab trình duyệt, và tải lại khi cửa sổ được focus. |
+
 Phi chức năng:
 
 | Mã | Đã làm |
